@@ -100,13 +100,20 @@
       right: 0;
     }
   </style>
-  <script id="splash-screen-script">
-    function removeSplashFromWeb() {
-      document.getElementById("splash")?.remove();
-      document.getElementById("splash-branding")?.remove();
-      document.body.style.background = "transparent";
-    }
-  </script>
+<script id="splash-screen-script">
+  function removeSplashFromWeb() {
+    var splash = document.getElementById('splash');
+    if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+    var branding = document.getElementById('splash-branding');
+    if (branding && branding.parentNode) branding.parentNode.removeChild(branding);
+    // Defer background change to next frame to avoid visible flicker.
+    requestAnimationFrame(function () {
+      document.body.style.background = 'transparent';
+    });
+  }
+  // Ensure cleanup even if called multiple times.
+  window.addEventListener('flutter-first-frame', removeSplashFromWeb, { once: true });
+</script>
   <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
 </head>
 <body>
