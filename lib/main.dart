@@ -400,23 +400,27 @@ Future<void> _initializeApp() async {
   }
   
   /// Smoothly fade volume (20 steps, 1000ms duration)
-  Future<void> _fadeVolume(double from, double to, int durationMs) async {
-    if (_musicPlayer == null) return;
+Future<void> _fadeVolume(double from, double to, int durationMs) async {
+  if (_musicPlayer == null || !mounted) return;
+  
+  const int steps = 20;
+  final int stepDuration = durationMs ~/ steps;
+  final double volumeStep = (to - from) / steps;
+  
+  double currentVolume = from;
+  
+  for (int i = 0; i < steps; i++) {
+    if (!mounted || _musicPlayer == null) return;
     
-    const int steps = 20;
-    final int stepDuration = durationMs ~/ steps;
-    final double volumeStep = (to - from) / steps;
-    
-    double currentVolume = from;
-    
-    for (int i = 0; i < steps; i++) {
-      currentVolume += volumeStep;
-      await _musicPlayer!.setVolume(currentVolume.clamp(0.0, 1.0));
-      await Future.delayed(Duration(milliseconds: stepDuration));
-    }
-    
+    currentVolume += volumeStep;
+    await _musicPlayer!.setVolume(currentVolume.clamp(0.0, 1.0));
+    await Future.delayed(Duration(milliseconds: stepDuration));
+  }
+  
+  if (mounted && _musicPlayer != null) {
     await _musicPlayer!.setVolume(to);
   }
+}
   
   /// PRESERVED: Fade music for dialog audio (What is Theta, Guide Me info)
   Future<void> _playDialogAudioWithMusicFade(String assetPath) async {
