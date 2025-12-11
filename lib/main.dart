@@ -156,6 +156,8 @@ class _ThetaHomePageState extends State<ThetaHomePage> {
 
   // Status auto-refresh timer
   Timer? _statusRefreshTimer;
+  Timer? _wallpaperFadeTimer;
+  Timer? _backgroundFadeTimer;
 
   // Guide Me
   final TextEditingController _guideMeController = TextEditingController();
@@ -1760,71 +1762,76 @@ Future<void> _showResponseDialog(String response) async {
     );
   }
 
-  @override
-Timer? _wallpaperFadeTimer;
-Timer? _backgroundFadeTimer;
+  /// Fade wallpaper into view over 4 seconds (opacity 0→1)
+  void _startWallpaperFadeIn() {
+    debugPrint('🌅 Starting wallpaper fade-in (4 seconds)');
 
-// Keep only the version around line 1460 that uses _wallpaperFadeTimer
-// Remove the duplicate definition around line 230
-      if (mounted) {
-        setState(() {
-          _backgroundOpacity = 1.0;
-        });
-      }
-      debugPrint('🌅 Wallpaper fade-in complete - fully visible');
-      return;
-    }
-    if (mounted) {
-      setState(() {
-        _backgroundOpacity = step / fadeSteps;
-      });
-    }
-  });
-}
-
-void _startBackgroundFade() {
-  if (_backgroundFadeStarted) return;
-  _backgroundFadeStarted = true;
-  Future.delayed(const Duration(milliseconds: 1300), () {
-    if (!mounted) return;
-    debugPrint('🌑 Starting background fade to pitch black (4000ms)');
     const fadeSteps = 40;
-    const fadeStepMs = 100;
+    const fadeStepMs = 100; // 4000ms / 40 steps = 100ms per step
+
     int step = 0;
-    _backgroundFadeTimer?.cancel();
-    _backgroundFadeTimer = Timer.periodic(const Duration(milliseconds: fadeStepMs), (timer) {
+    _wallpaperFadeTimer?.cancel();
+    _wallpaperFadeTimer = Timer.periodic(const Duration(milliseconds: fadeStepMs), (timer) {
       step++;
       if (!mounted || step >= fadeSteps) {
         timer.cancel();
         if (mounted) {
           setState(() {
-            _backgroundOpacity = 0.0;
+            _backgroundOpacity = 1.0;
           });
         }
-        debugPrint('🌑 Background fade complete - pitch black');
+        debugPrint('🌅 Wallpaper fade-in complete - fully visible');
         return;
       }
-      if (mounted) {
-        setState(() {
-          _backgroundOpacity = 1.0 - (step / fadeSteps);
-        });
-      }
-    });
-  });
-}
 
-@override
-void dispose() {
-  _divineShuffleTimer?.cancel();
-  _wallpaperFadeTimer?.cancel();
-  _backgroundFadeTimer?.cancel();
-  _statusRefreshTimer?.cancel();
-  _audioService.dispose();
-  _dialogAudioPlayer.dispose();
-  _musicPlayer?.dispose();
-  _guideMeController.dispose();
-  super.dispose();
-}
+      setState(() {
+        _backgroundOpacity = step / fadeSteps;
+      });
+    });
+  }
+
+  void _startBackgroundFade() {
+    if (_backgroundFadeStarted) return;
+    _backgroundFadeStarted = true;
+    Future.delayed(const Duration(milliseconds: 1300), () {
+      if (!mounted) return;
+      debugPrint('🌑 Starting background fade to pitch black (4000ms)');
+      const fadeSteps = 40;
+      const fadeStepMs = 100;
+      int step = 0;
+      _backgroundFadeTimer?.cancel();
+      _backgroundFadeTimer = Timer.periodic(const Duration(milliseconds: fadeStepMs), (timer) {
+        step++;
+        if (!mounted || step >= fadeSteps) {
+          timer.cancel();
+          if (mounted) {
+            setState(() {
+              _backgroundOpacity = 0.0;
+            });
+          }
+          debugPrint('🌑 Background fade complete - pitch black');
+          return;
+        }
+        if (mounted) {
+          setState(() {
+            _backgroundOpacity = 1.0 - (step / fadeSteps);
+          });
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _wallpaperFadeTimer?.cancel();
+    _backgroundFadeTimer?.cancel();
+    _statusRefreshTimer?.cancel();
+    _audioService.dispose();
+    _dialogAudioPlayer.dispose();
+    _musicPlayer?.dispose();
+    _guideMeController.dispose();
+    super.dispose();
+  }
 
   // ═══════════════════════════════════════════════════════════════════
   // UI BUILD - All buttons now use Google Fonts
