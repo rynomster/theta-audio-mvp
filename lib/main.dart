@@ -1799,16 +1799,8 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
 Timer? _wallpaperFadeTimer;
 Timer? _backgroundFadeTimer;
 
-void _startWallpaperFadeIn() {
-  debugPrint('🌅 Starting wallpaper fade-in (4 seconds)');
-  const fadeSteps = 40;
-  const fadeStepMs = 100;
-  int step = 0;
-  _wallpaperFadeTimer?.cancel();
-  _wallpaperFadeTimer = Timer.periodic(const Duration(milliseconds: fadeStepMs), (timer) {
-    step++;
-    if (!mounted || step >= fadeSteps) {
-      timer.cancel();
+// Keep only the version around line 1460 that uses _wallpaperFadeTimer
+// Remove the duplicate definition around line 230
       if (mounted) {
         setState(() {
           _backgroundOpacity = 1.0;
