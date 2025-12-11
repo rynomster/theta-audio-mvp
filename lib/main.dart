@@ -1506,31 +1506,33 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
   }
   
   /// FIX #8 & #11: Guide Me Response Dialog with Option 5 styling and 30000ms auto-scroll
-  void _showResponseDialog(String response) {
-    final ScrollController scrollController = ScrollController();
-    
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.7),
-      builder: (context) {
-        // Auto-scroll DISABLED - user scrolls manually via gold dot
-        
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(16),
-          child: _buildOption5DialogContent(
-            title: 'Scripture Guidance',
-            subtitle: 'WISDOM FROM THE WORD',
-            scrollController: scrollController,
-            content: SelectableText(
-              response,
-              style: GoogleFonts.lora(fontSize: 14, height: 1.7, color: _bodyText),
-            ),
+Future<void> _showResponseDialog(String response) async {
+  await _duckMusicForIntro();
+  final ScrollController scrollController = ScrollController();
+  
+  await showDialog(
+    context: context,
+    barrierColor: Colors.black.withOpacity(0.7),
+    builder: (context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: _buildOption5DialogContent(
+          title: 'Scripture Guidance',
+          subtitle: 'WISDOM FROM THE WORD',
+          scrollController: scrollController,
+          content: SelectableText(
+            response,
+            style: GoogleFonts.lora(fontSize: 14, height: 1.7, color: _bodyText),
           ),
-        );
-      },
-    ).then((_) => scrollController.dispose());
-  }
+        ),
+      );
+    },
+  );
+  
+  scrollController.dispose();
+  await _restoreMusicAfterIntro();
+}
   
   void _showErrorDialog(String message) {
     showDialog(
