@@ -1,7 +1,7 @@
 /// Theta Audio MVP - Main Application (ANDROID PRODUCTION)
-/// 
+///
 /// VERSION: 2.0.0 - FIXED All 12 Issues
-/// 
+///
 /// FIXES APPLIED:
 /// 1. ✅ Added Google Fonts import
 /// 2. ✅ Added 5-second delay before Divine Shuffle appears (wallpaper visibility)
@@ -119,48 +119,48 @@ class ThetaHomePage extends StatefulWidget {
 class _ThetaHomePageState extends State<ThetaHomePage> {
   // Audio service instance
   final ThetaAudioService _audioService = ThetaAudioService();
-  
+
   // SEPARATE audio player for dialog TTS (What is Theta, Guide Me info)
   final AudioPlayer _dialogAudioPlayer = AudioPlayer();
-  
+
   // Background music player (Yeshua / David songs)
   AudioPlayer? _musicPlayer;
-  
+
   // Background music state
   bool _isMusicPlaying = true;
   bool _musicInitialized = false;
-  
+
   // PRESERVED EXACTLY: Volume settings for Android (logarithmic scale)
   static const double _yeshuaMusicVolume = 0.5;  // 50% for Yeshua (normal)
   static const double _davidMusicVolume = 0.8;   // 80% for David (louder)
   static const double _prayerMusicVolume = 0.10; // 10% during prayer (Android logarithmic)
   static const double _dialogMusicVolume = 0.05; // 5% during dialog TTS
-  
+
   String _currentMusicPath = 'audio/Yeshua _ song.mp3';
-  
+
   // App state
   bool _isActive = false;
   bool _isInitialized = false;
   String? _errorMessage;
   int _selectedInterval = 10;
-  
+
   // Divine Shuffle state - FIX: Start as FALSE, show after 5 second delay
   bool _showDivineShuffle = false;
   bool _introComplete = false;
   String? _currentPrayerPath;
   final GlobalKey<DivineShufflePopupState> _divineShuffleKey = GlobalKey();
-  
+
   // Background fade state (white → pitch black)
   double _backgroundOpacity = 0.0; // Starts at 0.0 (invisible), fades to 1.0 over 4 seconds
   bool _backgroundFadeStarted = false;
-  
+
   // Status auto-refresh timer
   Timer? _statusRefreshTimer;
-  
+
   // Guide Me
   final TextEditingController _guideMeController = TextEditingController();
   bool _isLoadingGPTResponse = false;
-  
+
   // Goliath Mode
   bool _isGoliathMode = false;
   static const Color _goliathActiveColor = Color(0xFF87CEEB); // Baby blue
@@ -170,82 +170,81 @@ class _ThetaHomePageState extends State<ThetaHomePage> {
     super.initState();
     _initializeApp();
   }
-  
+
   Future<void> _initializeApp() async {
     try {
-Future<void> _initializeApp() async {
-  try {
-    // Initialize audio service
-    await _audioService.initialize();
-    
-    // Set callbacks for audio service
-    _audioService.onStatusChanged = (isActive) {
-      if (mounted) {
-        setState(() {
-          _isActive = isActive;
-        });
+
+      // Initialize audio service
+      await _audioService.initialize();
+
+      // Set callbacks for audio service
+      _audioService.onStatusChanged = (isActive) {
+        if (mounted) {
+          setState(() {
+            _isActive = isActive;
+          });
+        }
+      };
+
+      // Set callbacks for music volume coordination (prayer start/end)
+      _audioService.onPrayerStart = _onPrayerStart;
+      _audioService.onPrayerEnd = _onPrayerEnd;
+
+      // NEW: Set callback for Divine Shuffle sync
+      _audioService.onPrayerChanged = _onPrayerChanged;
+
+      // Initialize background music (non-critical - continue if fails)
+      try {
+        await _initializeBackgroundMusic();
+      } catch (e) {
+        debugPrint('⚠️ Background music initialization failed (non-critical): $e');
       }
-    };
-    
-    // Set callbacks for music volume coordination (prayer start/end)
-    _audioService.onPrayerStart = _onPrayerStart;
-    _audioService.onPrayerEnd = _onPrayerEnd;
-    
-    // NEW: Set callback for Divine Shuffle sync
-    _audioService.onPrayerChanged = _onPrayerChanged;
-    
-    // Initialize background music (non-critical - continue if fails)
-    try {
-      await _initializeBackgroundMusic();
+
+      // Start status auto-refresh timer (every 1 minute)
+      _statusRefreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+        if (mounted && _isActive && !_isGoliathMode) {
+          setState(() {}); // Triggers UI rebuild to update time status
+        }
+      });
+
+      setState(() {
+        _isInitialized = true;
+      });
+
+      debugPrint('✅ Theta Android Production initialized');
+
+      // Start wallpaper fade-in over 4 seconds (opacity 0→1)
+      _startWallpaperFadeIn();
+
+      // Divine Shuffle appears at 7 seconds (3 seconds after wallpaper fade-in completes at 4s)
+      Future.delayed(const Duration(seconds: 7), () {
+        if (mounted) {
+          debugPrint('🔀 7-second delay complete - showing Divine Shuffle');
+          setState(() {
+            _showDivineShuffle = true;
+          });
+          // Start background fade AFTER Divine Shuffle appears
+          _startBackgroundFade();
+        }
+      });
+
     } catch (e) {
-      debugPrint('⚠️ Background music initialization failed (non-critical): $e');
+      // Cleanup on critical failure
+      _statusRefreshTimer?.cancel();
+      setState(() {
+        _errorMessage = 'Failed to initialize: $e';
+        _isInitialized = false;
+      });
     }
-    
-    // Start status auto-refresh timer (every 1 minute)
-    _statusRefreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
-      if (mounted && _isActive && !_isGoliathMode) {
-        setState(() {}); // Triggers UI rebuild to update time status
-      }
-    });
-    
-    setState(() {
-      _isInitialized = true;
-    });
-    
-    debugPrint('✅ Theta Android Production initialized');
-    
-    // Start wallpaper fade-in over 4 seconds (opacity 0→1)
-    _startWallpaperFadeIn();
-    
-    // Divine Shuffle appears at 7 seconds (3 seconds after wallpaper fade-in completes at 4s)
-    Future.delayed(const Duration(seconds: 7), () {
-      if (mounted) {
-        debugPrint('🔀 7-second delay complete - showing Divine Shuffle');
-        setState(() {
-          _showDivineShuffle = true;
-        });
-        // Start background fade AFTER Divine Shuffle appears
-        _startBackgroundFade();
-      }
-    });
-    
-  } catch (e) {
-    // Cleanup on critical failure
-    _statusRefreshTimer?.cancel();
-    setState(() {
-      _errorMessage = 'Failed to initialize: $e';
-      _isInitialized = false;
-    });
   }
-}
-  
+
   /// Fade wallpaper into view over 4 seconds (opacity 0→1)
   void _startWallpaperFadeIn() {
     debugPrint('🌅 Starting wallpaper fade-in (4 seconds)');
-    
+
     const fadeSteps = 40;
     const fadeStepMs = 100; // 4000ms / 40 steps = 100ms per step
-    
+
     int step = 0;
     Timer.periodic(const Duration(milliseconds: fadeStepMs), (timer) {
       step++;
@@ -259,49 +258,13 @@ Future<void> _initializeApp() async {
         debugPrint('🌅 Wallpaper fade-in complete - fully visible');
         return;
       }
-      
+
       setState(() {
         _backgroundOpacity = step / fadeSteps;
       });
     });
   }
-  
-  /// Start background fade from white to pitch black (4000ms)
-  void _startBackgroundFade() {
-    if (_backgroundFadeStarted) return;
-    _backgroundFadeStarted = true;
-    
-    // Wait for Divine Shuffle popup to fade in (1300ms delay from instruction brief)
-    Future.delayed(const Duration(milliseconds: 1300), () {
-      if (!mounted) return;
-      
-      debugPrint('🌑 Starting background fade to pitch black (4000ms)');
-      
-      // Fade over 4000ms
-      const fadeSteps = 40;
-      const fadeStepMs = 100; // 4000ms / 40 steps = 100ms per step
-      
-      int step = 0;
-      Timer.periodic(const Duration(milliseconds: fadeStepMs), (timer) {
-        step++;
-        if (!mounted || step >= fadeSteps) {
-          timer.cancel();
-          if (mounted) {
-            setState(() {
-              _backgroundOpacity = 0.0;
-            });
-          }
-          debugPrint('🌑 Background fade complete - pitch black');
-          return;
-        }
-        
-        setState(() {
-          _backgroundOpacity = 1.0 - (step / fadeSteps);
-        });
-      });
-    });
-  }
-  
+
   /// NEW: Called when prayer changes (Divine Shuffle sync)
   void _onPrayerChanged(String prayerPath) {
     debugPrint('🔀 Prayer changed: $prayerPath');
@@ -309,14 +272,14 @@ Future<void> _initializeApp() async {
       _currentPrayerPath = prayerPath;
     });
   }
-  
+
   /// Initialize background music
   Future<void> _initializeBackgroundMusic() async {
     try {
       debugPrint('🎵 Initializing background music...');
-      
+
       _musicPlayer = AudioPlayer();
-      
+
       // CRITICAL FIX: Set audio context to allow mixing with other audio
       await _musicPlayer!.setAudioContext(AudioContext(
         iOS: AudioContextIOS(
@@ -334,31 +297,31 @@ Future<void> _initializeApp() async {
           audioFocus: AndroidAudioFocus.gainTransientMayDuck,
         ),
       ));
-      
+
       // Set to loop mode
       await _musicPlayer!.setReleaseMode(ReleaseMode.loop);
-      
+
       // Set volume for Yeshua (50%)
       await _musicPlayer!.setVolume(_yeshuaMusicVolume);
-      
+
       // Start playing Yeshua song
       await _musicPlayer!.play(AssetSource('audio/Yeshua _ song.mp3'));
-      
+
       _musicInitialized = true;
       _isMusicPlaying = true;
       _currentMusicPath = 'audio/Yeshua _ song.mp3';
-      
+
       debugPrint('✅ Background music started (Yeshua song at 50%)');
-      
+
     } catch (e) {
       debugPrint('⚠️ Could not start background music: $e');
     }
   }
-  
+
   /// Toggle background music on/off
   Future<void> _toggleBackgroundMusic() async {
     if (_musicPlayer == null) return;
-    
+
     try {
       if (_isMusicPlaying) {
         await _musicPlayer!.pause();
@@ -380,7 +343,7 @@ Future<void> _initializeApp() async {
       debugPrint('⚠️ Error toggling music: $e');
     }
   }
-  
+
   /// PRESERVED: Called when prayer starts - fade music to 10%
   void _onPrayerStart() {
     if (_isMusicPlaying && _musicPlayer != null) {
@@ -389,7 +352,7 @@ Future<void> _initializeApp() async {
       debugPrint('🔉 Music fading to 10% for prayer...');
     }
   }
-  
+
   /// PRESERVED: Called when prayer ends - restore music volume
   void _onPrayerEnd() {
     if (_isMusicPlaying && _musicPlayer != null) {
@@ -398,42 +361,42 @@ Future<void> _initializeApp() async {
       debugPrint('🔊 Music fading back to ${_isGoliathMode ? "80%" : "50%"}...');
     }
   }
-  
+
   /// Smoothly fade volume (20 steps, 1000ms duration)
-Future<void> _fadeVolume(double from, double to, int durationMs) async {
-  if (_musicPlayer == null || !mounted) return;
-  
-  const int steps = 20;
-  final int stepDuration = durationMs ~/ steps;
-  final double volumeStep = (to - from) / steps;
-  
-  double currentVolume = from;
-  
-  for (int i = 0; i < steps; i++) {
-    if (!mounted || _musicPlayer == null) return;
-    
-    currentVolume += volumeStep;
-    await _musicPlayer!.setVolume(currentVolume.clamp(0.0, 1.0));
-    await Future.delayed(Duration(milliseconds: stepDuration));
+  Future<void> _fadeVolume(double from, double to, int durationMs) async {
+    if (_musicPlayer == null || !mounted) return;
+
+    const int steps = 20;
+    final int stepDuration = durationMs ~/ steps;
+    final double volumeStep = (to - from) / steps;
+
+    double currentVolume = from;
+
+    for (int i = 0; i < steps; i++) {
+      if (!mounted || _musicPlayer == null) return;
+
+      currentVolume += volumeStep;
+      await _musicPlayer!.setVolume(currentVolume.clamp(0.0, 1.0));
+      await Future.delayed(Duration(milliseconds: stepDuration));
+    }
+
+    if (mounted && _musicPlayer != null) {
+      await _musicPlayer!.setVolume(to);
+    }
   }
-  
-  if (mounted && _musicPlayer != null) {
-    await _musicPlayer!.setVolume(to);
-  }
-}
-  
+
   /// PRESERVED: Fade music for dialog audio (What is Theta, Guide Me info)
   Future<void> _playDialogAudioWithMusicFade(String assetPath) async {
     try {
       debugPrint('🎵 Playing dialog audio: $assetPath');
-      
+
       // STEP 1: Fade music down to 5% FIRST
       if (_isMusicPlaying && _musicPlayer != null) {
         final fromVolume = _isGoliathMode ? _davidMusicVolume : _yeshuaMusicVolume;
         await _fadeVolume(fromVolume, _dialogMusicVolume, 500);
         debugPrint('🔉 Music faded to 5% for dialog TTS');
       }
-      
+
       // STEP 2: Configure dialog player
       await _dialogAudioPlayer.setAudioContext(AudioContext(
         iOS: AudioContextIOS(
@@ -450,29 +413,29 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
           audioFocus: AndroidAudioFocus.none,
         ),
       ));
-      
+
       // STEP 3: Stop any current dialog playback
       await _dialogAudioPlayer.stop();
-      
+
       // STEP 4: Set volume to MAXIMUM
       await _dialogAudioPlayer.setVolume(1.0);
-      
+
       // STEP 5: Play dialog audio
       await _dialogAudioPlayer.play(AssetSource(assetPath));
       debugPrint('✅ Dialog TTS playing at FULL volume');
-      
+
       // STEP 6: Listen for completion to restore music volume
       _dialogAudioPlayer.onPlayerComplete.listen((event) {
         debugPrint('🔔 Dialog TTS complete - restoring music volume');
         _restoreMusicVolumeAfterDialog();
       });
-      
+
     } catch (e) {
       debugPrint('⚠️ Could not play dialog audio: $e');
       _restoreMusicVolumeAfterDialog();
     }
   }
-  
+
   /// Restore music volume after dialog audio finishes
   Future<void> _restoreMusicVolumeAfterDialog() async {
     if (_isMusicPlaying && _musicPlayer != null) {
@@ -481,13 +444,13 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
       debugPrint('🔊 Music restored after dialog');
     }
   }
-  
+
   /// Stop dialog audio and restore music (called when dialog closes)
   Future<void> _stopDialogAudioAndRestoreMusic() async {
     await _dialogAudioPlayer.stop();
     await _restoreMusicVolumeAfterDialog();
   }
-  
+
   /// Duck music to 5% for intro TTS (Welcome to Theta, Divine Shuffle, How to Use)
   Future<void> _duckMusicForIntro() async {
     if (_isMusicPlaying && _musicPlayer != null) {
@@ -496,7 +459,7 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
       debugPrint('🔉 Music ducked to 5% for intro TTS');
     }
   }
-  
+
   /// Restore music volume after intro TTS finishes
   Future<void> _restoreMusicAfterIntro() async {
     if (_isMusicPlaying && _musicPlayer != null) {
@@ -509,7 +472,7 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
   // ═══════════════════════════════════════════════════════════════════
   // THETA CONTROL FUNCTIONS
   // ═══════════════════════════════════════════════════════════════════
-  
+
   Future<void> _startTheta() async {
     try {
       await _audioService.startTheta(intervalMinutes: _selectedInterval);
@@ -557,7 +520,7 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
   // ═══════════════════════════════════════════════════════════════════
   // GOLIATH MODE FUNCTIONS
   // ═══════════════════════════════════════════════════════════════════
-  
+
   Future<void> _toggleGoliathMode() async {
     if (_isGoliathMode) {
       await _stopGoliathMode();
@@ -565,24 +528,24 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
       await _startGoliathMode();
     }
   }
-  
+
   Future<void> _startGoliathMode() async {
     debugPrint('🗡️ Starting Goliath Mode...');
-    
+
     // Stop Theta if running
     if (_isActive) {
       await _stopTheta();
     }
-    
+
     // Fade out current music completely
     if (_isMusicPlaying && _musicPlayer != null) {
       await _fadeVolume(_yeshuaMusicVolume, 0.0, 1500);
       await _musicPlayer!.stop();
     }
-    
+
     // Switch to David music
     _currentMusicPath = 'audio/David.mp3';
-    
+
     if (_musicPlayer != null) {
       try {
         await _musicPlayer!.setAudioContext(AudioContext(
@@ -601,11 +564,11 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
             audioFocus: AndroidAudioFocus.gainTransientMayDuck,
           ),
         ));
-        
+
         await _musicPlayer!.setReleaseMode(ReleaseMode.loop);
         await _musicPlayer!.setVolume(0.0);
         await _musicPlayer!.play(AssetSource('audio/David.mp3'));
-        
+
         // Fade in David music to 80%
         await _fadeVolume(0.0, _davidMusicVolume, 1500);
         _isMusicPlaying = true;
@@ -614,39 +577,39 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
         debugPrint('⚠️ Error starting David music: $e');
       }
     }
-    
+
     setState(() {
       _isGoliathMode = true;
     });
-    
+
     // Start Goliath prayers
     await _audioService.startGoliathMode(intervalMinutes: _selectedInterval);
-    
+
     setState(() {
       _isActive = true;
     });
-    
+
     debugPrint('🗡️ Goliath Mode ACTIVATED');
   }
-  
+
   Future<void> _stopGoliathMode() async {
     debugPrint('🗡️ Stopping Goliath Mode...');
-    
+
     // Stop Goliath prayers (stopTheta works for both modes)
     await _audioService.stopTheta();
-    
+
     // Fade out David music
     if (_isMusicPlaying && _musicPlayer != null) {
       await _fadeVolume(_davidMusicVolume, 0.0, 1500);
       await _musicPlayer!.stop();
     }
-    
+
     // Short cooldown
     await Future.delayed(const Duration(milliseconds: 500));
-    
+
     // Switch back to Yeshua music at 50%
     _currentMusicPath = 'audio/Yeshua _ song.mp3';
-    
+
     if (_musicPlayer != null) {
       try {
         await _musicPlayer!.setAudioContext(AudioContext(
@@ -665,7 +628,7 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
             audioFocus: AndroidAudioFocus.gainTransientMayDuck,
           ),
         ));
-        
+
         await _musicPlayer!.setReleaseMode(ReleaseMode.loop);
         await _musicPlayer!.setVolume(_yeshuaMusicVolume);
         await _musicPlayer!.play(AssetSource('audio/Yeshua _ song.mp3'));
@@ -675,24 +638,24 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
         debugPrint('⚠️ Error resuming Yeshua music: $e');
       }
     }
-    
+
     setState(() {
       _isGoliathMode = false;
       _isActive = false;
     });
-    
+
     debugPrint('🗡️ Goliath Mode DEACTIVATED');
   }
 
   // ═══════════════════════════════════════════════════════════════════
   // STATUS TEXT FUNCTIONS
   // ═══════════════════════════════════════════════════════════════════
-  
+
   String _getFullTimeStatus() {
     final hour = DateTime.now().hour;
     final now = DateTime.now();
     final timeString = '${now.hour}:${now.minute.toString().padLeft(2, '0')}';
-    
+
     if (hour >= 5 && hour < 11) {
       return '🌅 Morning Prayers ($timeString)';
     } else if (hour >= 11 && hour < 18) {
@@ -701,7 +664,7 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
       return '🌙 Evening Prayers ($timeString)';
     }
   }
-  
+
   String _getStatusText() {
     if (_isGoliathMode) {
       return 'Goliath Mode: Spiritual Warfare';
@@ -715,14 +678,14 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
   // ═══════════════════════════════════════════════════════════════════
   // DIVINE SHUFFLE PHASE 1 COMPLETE CALLBACK
   // ═══════════════════════════════════════════════════════════════════
-  
+
   void _onPhase1Complete() {
     debugPrint('🔀 Divine Shuffle Phase 1 complete - buttons now enabled');
     setState(() {
       _introComplete = true;
     });
   }
-  
+
   /// Check if buttons should be disabled (during intro)
   bool get _buttonsDisabled {
     if (!_showDivineShuffle) return true; // Also disabled before Divine Shuffle appears
@@ -732,23 +695,23 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
   // ═══════════════════════════════════════════════════════════════════
   // GUIDE ME AI FUNCTIONS
   // ═══════════════════════════════════════════════════════════════════
-  
+
   Future<void> _sendQuestionToGPT(String question) async {
     final trimmedQuestion = question.trim();
     if (trimmedQuestion.isEmpty) {
       _showErrorDialog('Please enter a question before submitting.');
       return;
     }
-    
+
     setState(() {
       _isLoadingGPTResponse = true;
     });
-    
+
     try {
       const apiUrl = 'https://theta-backend.vercel.app/api/guide-me';
-      
+
       debugPrint('📤 Sending Guide Me request...');
-      
+
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},
@@ -757,14 +720,14 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
           'systemPrompt': _christianPersonaPrompt,
         }),
       );
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final answer = data['response'] ?? data['answer'] ?? 'No response received';
-        
+
         _guideMeController.clear();
         _showResponseDialog(answer);
-        
+
         debugPrint('✅ Guide Me response received');
       } else {
         throw Exception('API error: ${response.statusCode}');
@@ -778,11 +741,11 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
       });
     }
   }
-  
+
   // ═══════════════════════════════════════════════════════════════════
   // OPTION 5 STYLED DIALOGS - ALL DIALOGS USE THIS STYLING
   // ═══════════════════════════════════════════════════════════════════
-  
+
   /// Build Option 5 star icon with gold glow
   Widget _buildOption5StarIcon() {
     return Container(
@@ -809,17 +772,17 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
       ),
     );
   }
-  
+
   // ─────────────────────────────────────────────────────────────────────────
   // HELPER: Scrollable with small round gold dot indicator
   // ─────────────────────────────────────────────────────────────────────────
-  
+
   Widget _buildGoldDotScrollable({
     required ScrollController controller,
     required Widget child,
   }) {
     const dotSize = 8.0;
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
         return Stack(
@@ -836,7 +799,7 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
               builder: (context, _) {
                 double scrollFraction = 0.0;
                 double maxScroll = 0.0;
-                
+
                 try {
                   if (controller.hasClients && controller.position.maxScrollExtent > 0) {
                     maxScroll = controller.position.maxScrollExtent;
@@ -845,10 +808,10 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
                 } catch (e) {
                   // Controller not yet attached
                 }
-                
+
                 // alignY: -0.9 (top) to 0.9 (bottom) with padding
                 final alignY = -0.9 + (scrollFraction * 1.8);
-                
+
                 return Align(
                   alignment: Alignment(0.98, alignY),
                   child: GestureDetector(
@@ -980,19 +943,19 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
       ),
     );
   }
-  
+
   /// FIX #7: "What is Theta" Dialog with Option 5 styling and 350000ms auto-scroll
   Future<void> _showAboutDialog() async {
     await _playDialogAudioWithMusicFade('audio/what_is_theta.mp3');
-    
+
     final ScrollController scrollController = ScrollController();
-    
+
     await showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.7),
       builder: (context) {
         // Auto-scroll DISABLED - user scrolls manually via gold dot
-        
+
         return Dialog(
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.all(16),
@@ -1317,23 +1280,23 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
         );
       },
     );
-    
+
     scrollController.dispose();
     await _stopDialogAudioAndRestoreMusic();
   }
-  
+
   /// FIX #9: Guide Me Info Dialog with Option 5 styling and auto-scroll
   Future<void> _showGuideMeInfo() async {
     await _playDialogAudioWithMusicFade('audio/guide_me_info.mp3');
-    
+
     final ScrollController scrollController = ScrollController();
-    
+
     await showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.7),
       builder: (context) {
         // Auto-scroll DISABLED - user scrolls manually via gold dot
-        
+
         return Dialog(
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.all(16),
@@ -1500,16 +1463,16 @@ Future<void> _fadeVolume(double from, double to, int durationMs) async {
         );
       },
     );
-    
+
     scrollController.dispose();
     await _stopDialogAudioAndRestoreMusic();
   }
-  
+
   /// FIX #8 & #11: Guide Me Response Dialog with Option 5 styling and 30000ms auto-scroll
 Future<void> _showResponseDialog(String response) async {
   await _duckMusicForIntro();
   final ScrollController scrollController = ScrollController();
-  
+
   await showDialog(
     context: context,
     barrierColor: Colors.black.withOpacity(0.7),
@@ -1529,11 +1492,11 @@ Future<void> _showResponseDialog(String response) async {
       );
     },
   );
-  
+
   scrollController.dispose();
   await _restoreMusicAfterIntro();
 }
-  
+
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -1693,8 +1656,8 @@ Future<void> _showResponseDialog(String response) async {
                                   child: Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
-                                      color: _isMusicPlaying 
-                                          ? _goldAccent.withOpacity(0.2) 
+                                      color: _isMusicPlaying
+                                          ? _goldAccent.withOpacity(0.2)
                                           : Colors.red.withOpacity(0.2),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
@@ -1749,7 +1712,7 @@ Future<void> _showResponseDialog(String response) async {
       },
     );
   }
-  
+
   Widget _buildOption5IntervalTile(String label, int minutes, StateSetter setDialogState) {
     final isSelected = _selectedInterval == minutes;
     return GestureDetector(
@@ -1882,7 +1845,7 @@ void dispose() {
               ),
             ),
           ),
-          
+
           // LAYER 2: Pitch black background (fades in as wallpaper fades out)
           Positioned.fill(
             child: Opacity(
@@ -1890,7 +1853,7 @@ void dispose() {
               child: Container(color: Colors.black),
             ),
           ),
-          
+
           // LAYER 3: Main UI content
           SafeArea(
             child: Column(
@@ -1952,14 +1915,14 @@ void dispose() {
                     ],
                   ),
                 ),
-                
+
                 // DIVINE SHUFFLE POPUP (positioned below top buttons, above status)
                 Expanded(
                   child: Column(
                     children: [
                       // Aesthetic gap above Divine Shuffle
                       const SizedBox(height: 8),
-                      
+
                       // DIVINE SHUFFLE POPUP - only shows after 5 second delay
                       // When not visible, use Expanded spacer to push Status/Guide Me to bottom
                       if (_showDivineShuffle)
@@ -1976,10 +1939,10 @@ void dispose() {
                         )
                       else
                         const Expanded(child: SizedBox()), // Spacer keeps bottom elements in position
-                      
+
                       // Aesthetic gap below Divine Shuffle
                       const SizedBox(height: 8),
-                      
+
                       // STATUS INDICATOR - above Guide Me search bar
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1989,8 +1952,8 @@ void dispose() {
                             color: Colors.grey[300],
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: _isGoliathMode 
-                                  ? _goliathActiveColor 
+                              color: _isGoliathMode
+                                  ? _goliathActiveColor
                                   : (_isActive ? Colors.green : Colors.red),
                               width: 2,
                             ),
@@ -2002,8 +1965,8 @@ void dispose() {
                                 width: 12,
                                 height: 12,
                                 decoration: BoxDecoration(
-                                  color: _isGoliathMode 
-                                      ? _goliathActiveColor 
+                                  color: _isGoliathMode
+                                      ? _goliathActiveColor
                                       : (_isActive ? Colors.green : Colors.red),
                                   shape: BoxShape.circle,
                                 ),
@@ -2021,9 +1984,9 @@ void dispose() {
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 10),
-                      
+
                       // GUIDE ME SEARCH BAR
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -2110,12 +2073,12 @@ void dispose() {
                           ],
                         ),
                       ),
-                      
+
                       const SizedBox(height: 20),
                     ],
                   ),
                 ),
-                
+
                 // BOTTOM BUTTONS SECTION - All with Google Fonts
                 Container(
                   padding: const EdgeInsets.only(left: 16, right: 16, bottom: 30),
@@ -2155,9 +2118,9 @@ void dispose() {
                               ),
                             ),
                           ),
-                          
+
                           const SizedBox(width: 12),
-                          
+
                           // STOP THETA button
                           Expanded(
                             child: ElevatedButton(
@@ -2190,9 +2153,9 @@ void dispose() {
                           ),
                         ],
                       ),
-                      
+
                       const SizedBox(height: 12),
-                      
+
                       // Row 2: GOLIATH MODE button - BRIGHT BLUE when active
                       SizedBox(
                         width: 180,
@@ -2213,7 +2176,7 @@ void dispose() {
                               Icon(
                                 Icons.shield,
                                 size: 22,
-                                color: _buttonsDisabled 
+                                color: _buttonsDisabled
                                     ? Colors.grey[600]
                                     : (_isGoliathMode ? Colors.white : Colors.black),
                               ),
@@ -2223,7 +2186,7 @@ void dispose() {
                                 style: GoogleFonts.montserrat(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: _buttonsDisabled 
+                                  color: _buttonsDisabled
                                       ? Colors.grey[600]
                                       : (_isGoliathMode ? Colors.white : Colors.black),
                                 ),
@@ -2238,7 +2201,7 @@ void dispose() {
               ],
             ),
           ),
-          
+
           // Loading indicator for Guide Me API calls
           if (_isLoadingGPTResponse)
             Container(
@@ -2259,7 +2222,7 @@ void dispose() {
                 ),
               ),
             ),
-          
+
           // Error message overlay
           if (_errorMessage != null)
             Positioned(
@@ -2280,7 +2243,7 @@ void dispose() {
                 ),
               ),
             ),
-          
+
           // Initialization loading
           if (!_isInitialized && _errorMessage == null)
             Container(
