@@ -1784,14 +1784,78 @@ _divineShuffleTimer = Timer(const Duration(seconds: 7), () {
   }
 
   @override
-  void dispose() {
-    _statusRefreshTimer?.cancel();
-    _audioService.dispose();
-    _dialogAudioPlayer.dispose();
-    _musicPlayer?.dispose();
-    _guideMeController.dispose();
-    super.dispose();
-  }
+Timer? _wallpaperFadeTimer;
+Timer? _backgroundFadeTimer;
+
+void _startWallpaperFadeIn() {
+  debugPrint('🌅 Starting wallpaper fade-in (4 seconds)');
+  const fadeSteps = 40;
+  const fadeStepMs = 100;
+  int step = 0;
+  _wallpaperFadeTimer?.cancel();
+  _wallpaperFadeTimer = Timer.periodic(const Duration(milliseconds: fadeStepMs), (timer) {
+    step++;
+    if (!mounted || step >= fadeSteps) {
+      timer.cancel();
+      if (mounted) {
+        setState(() {
+          _backgroundOpacity = 1.0;
+        });
+      }
+      debugPrint('🌅 Wallpaper fade-in complete - fully visible');
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _backgroundOpacity = step / fadeSteps;
+      });
+    }
+  });
+}
+
+void _startBackgroundFade() {
+  if (_backgroundFadeStarted) return;
+  _backgroundFadeStarted = true;
+  Future.delayed(const Duration(milliseconds: 1300), () {
+    if (!mounted) return;
+    debugPrint('🌑 Starting background fade to pitch black (4000ms)');
+    const fadeSteps = 40;
+    const fadeStepMs = 100;
+    int step = 0;
+    _backgroundFadeTimer?.cancel();
+    _backgroundFadeTimer = Timer.periodic(const Duration(milliseconds: fadeStepMs), (timer) {
+      step++;
+      if (!mounted || step >= fadeSteps) {
+        timer.cancel();
+        if (mounted) {
+          setState(() {
+            _backgroundOpacity = 0.0;
+          });
+        }
+        debugPrint('🌑 Background fade complete - pitch black');
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _backgroundOpacity = 1.0 - (step / fadeSteps);
+        });
+      }
+    });
+  });
+}
+
+@override
+void dispose() {
+  _divineShuffleTimer?.cancel();
+  _wallpaperFadeTimer?.cancel();
+  _backgroundFadeTimer?.cancel();
+  _statusRefreshTimer?.cancel();
+  _audioService.dispose();
+  _dialogAudioPlayer.dispose();
+  _musicPlayer?.dispose();
+  _guideMeController.dispose();
+  super.dispose();
+}
 
   // ═══════════════════════════════════════════════════════════════════
   // UI BUILD - All buttons now use Google Fonts
