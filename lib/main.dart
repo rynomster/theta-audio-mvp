@@ -173,63 +173,71 @@ class _ThetaHomePageState extends State<ThetaHomePage> {
   
   Future<void> _initializeApp() async {
     try {
-      // Initialize audio service
-      await _audioService.initialize();
-      
-      // Set callbacks for audio service
-      _audioService.onStatusChanged = (isActive) {
+Future<void> _initializeApp() async {
+  try {
+    // Initialize audio service
+    await _audioService.initialize();
+    
+    // Set callbacks for audio service
+    _audioService.onStatusChanged = (isActive) {
+      if (mounted) {
         setState(() {
           _isActive = isActive;
         });
-      };
-      
-      // Set callbacks for music volume coordination (prayer start/end)
-      _audioService.onPrayerStart = _onPrayerStart;
-      _audioService.onPrayerEnd = _onPrayerEnd;
-      
-      // NEW: Set callback for Divine Shuffle sync
-      _audioService.onPrayerChanged = _onPrayerChanged;
-      
-      // Initialize background music
+      }
+    };
+    
+    // Set callbacks for music volume coordination (prayer start/end)
+    _audioService.onPrayerStart = _onPrayerStart;
+    _audioService.onPrayerEnd = _onPrayerEnd;
+    
+    // NEW: Set callback for Divine Shuffle sync
+    _audioService.onPrayerChanged = _onPrayerChanged;
+    
+    // Initialize background music (non-critical - continue if fails)
+    try {
       await _initializeBackgroundMusic();
-      
-      // Start status auto-refresh timer (every 1 minute)
-      _statusRefreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
-        if (_isActive && !_isGoliathMode) {
-          setState(() {}); // Triggers UI rebuild to update time status
-        }
-      });
-      
-      setState(() {
-        _isInitialized = true;
-      });
-      
-      debugPrint('✅ Theta Android Production initialized');
-      
-      // Start wallpaper fade-in over 4 seconds (opacity 0→1)
-      _startWallpaperFadeIn();
-      
-      // Divine Shuffle appears at 7 seconds (3 seconds after wallpaper fade-in completes at 4s)
-// Divine Shuffle appears at 7 seconds (3 seconds after wallpaper fade-in completes at 4s)
-static Timer? _divineShuffleTimer;
-_divineShuffleTimer?.cancel();
-_divineShuffleTimer = Timer(const Duration(seconds: 7), () {
-  if (!mounted || _showDivineShuffle) return;
-  debugPrint('🔀 7-second delay complete - showing Divine Shuffle');
-  setState(() {
-    _showDivineShuffle = true;
-  });
-  // Start background fade AFTER Divine Shuffle appears
-  _startBackgroundFade();
-});
-      
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to initialize: $e';
-        _isInitialized = false;
-      });
+      debugPrint('⚠️ Background music initialization failed (non-critical): $e');
     }
+    
+    // Start status auto-refresh timer (every 1 minute)
+    _statusRefreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (mounted && _isActive && !_isGoliathMode) {
+        setState(() {}); // Triggers UI rebuild to update time status
+      }
+    });
+    
+    setState(() {
+      _isInitialized = true;
+    });
+    
+    debugPrint('✅ Theta Android Production initialized');
+    
+    // Start wallpaper fade-in over 4 seconds (opacity 0→1)
+    _startWallpaperFadeIn();
+    
+    // Divine Shuffle appears at 7 seconds (3 seconds after wallpaper fade-in completes at 4s)
+    Future.delayed(const Duration(seconds: 7), () {
+      if (mounted) {
+        debugPrint('🔀 7-second delay complete - showing Divine Shuffle');
+        setState(() {
+          _showDivineShuffle = true;
+        });
+        // Start background fade AFTER Divine Shuffle appears
+        _startBackgroundFade();
+      }
+    });
+    
+  } catch (e) {
+    // Cleanup on critical failure
+    _statusRefreshTimer?.cancel();
+    setState(() {
+      _errorMessage = 'Failed to initialize: $e';
+      _isInitialized = false;
+    });
   }
+}
   
   /// Fade wallpaper into view over 4 seconds (opacity 0→1)
   void _startWallpaperFadeIn() {
