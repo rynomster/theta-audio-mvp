@@ -210,16 +210,18 @@ class _ThetaHomePageState extends State<ThetaHomePage> {
       _startWallpaperFadeIn();
       
       // Divine Shuffle appears at 7 seconds (3 seconds after wallpaper fade-in completes at 4s)
-      Future.delayed(const Duration(seconds: 7), () {
-        if (mounted) {
-          debugPrint('🔀 7-second delay complete - showing Divine Shuffle');
-          setState(() {
-            _showDivineShuffle = true;
-          });
-          // Start background fade AFTER Divine Shuffle appears
-          _startBackgroundFade();
-        }
-      });
+// Divine Shuffle appears at 7 seconds (3 seconds after wallpaper fade-in completes at 4s)
+static Timer? _divineShuffleTimer;
+_divineShuffleTimer?.cancel();
+_divineShuffleTimer = Timer(const Duration(seconds: 7), () {
+  if (!mounted || _showDivineShuffle) return;
+  debugPrint('🔀 7-second delay complete - showing Divine Shuffle');
+  setState(() {
+    _showDivineShuffle = true;
+  });
+  // Start background fade AFTER Divine Shuffle appears
+  _startBackgroundFade();
+});
       
     } catch (e) {
       setState(() {
